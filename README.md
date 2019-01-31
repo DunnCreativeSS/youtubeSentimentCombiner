@@ -1,48 +1,23 @@
-<h3>Python YouTube API</h3>
+# youtubeSentimentCombiner
 
-A basic Python YouTube v3 API to fetch data from YouTube using public API-Key without OAuth
+1. Connect to gsheets for later: https://docs.google.com/spreadsheets/d/1rX4mniePZLIUCIFd7H2EdMioR_ip3LhtAjxJ2VclvXg/edit?usp=sharing
 
-It fetch comments, perform search and return videos, channels and playlist in categorized form.
+2. Connect to YouTube
 
-You are required to get the API key from Google API console in order to use this script
+3. Start cycling through the top results for a search for 'bitcoin exchange,' then start cycling through their comments and replies. For sake of ease, we combine replies with comments.
 
-<h3>How to use</h3>
+4. Take the raw text from step 3, split it into an array on newline chars, filter out empty strings
 
-<i>Pass --c after file name for calling Video Comment function</i>
-<i>Pass --s after file name for calling Search by Keyword</i>
-<i>Pass --sc after file name for calling Search videos by YouTube ChannelId</i>
-<br><b>It is mandatory to pass any of the above argument after file name</b>
+5. Create an array of judged sentiments from the Natural Language Toolkkit's Vader function for each string in array from step 4
 
-<h2>Video Comments</h2>
-<ul>
-<li>python youtube_api_cmd.py --max --videourl --key </li>
-<li>--max parameter for defining the maximum result you want (maxlimit = 100, default=20)</li>
-<li>--videourl parameter for defining the youtube URL</li>
-<li>--key parameter for defining your developer API key</li>
-<li>--videourl and --key parameter is mandatory. --max parameter is optional</li>
-</ul>
+6. For each of the sentiments from step 5, grab the compound (overall) sentiment rating (which is based on values attributed to keywords and etc., worth a search on your favorite engine) and check if it's above or below a threshold value, then make them lowercase and replace 'bitcoin' with 'our coin' and 'btc' with 'our ticker' and ensure the string doesn't start with a shady substring then append the results to our positives && negatives arrays
 
-<h2>Search by Keyword</h2>
-<ul>
-<li>python youtube_api_cmd.py --search --max --key</li>
-<li>--max parameter for defining the maximum result you want (maxlimit = 100, default=20)</li>
-<li>--search parameter for giving the keyword</li>
-<li>--r parameter for defining region (Country) For ex. --r=IN (Parameter should be a country code)</li>
-<li>--key parameter for defining your developer API key <i><b>Mandatory</b></i></li>
-<li>It will return Videos, Channel and Playlist in the respective category</li>
-</ul>
+7. Once we have 60+ negative and 60+ positive results from step 6, we put a halt to the YouTube data collection then loop 10 times:
 
-<h2>Search Videos by YouTube ChannelId</h2>
-<ul>
-<li>python youtube_api_cmd.py --channelid --max --key</li>
-<li>--max parameter for defining the maximum result you want (maxlimit = 100, default=20)</li>
-<li>--channelid parameter for defining channel id <i><b>Mandatory</b></i></li>
-<li>--key parameter for defining your developer API key <i><b>Mandatory</b></i></li>
-<li>It will list of Videos from the defined YouTube ChannelId</li>
-</ul>
+8. For a range of maximum 6 strings, for first positive strings then negative strings take a random choice (so long as it's not already taken) and add it to a series of final sets of superpowerful strings
 
-<h3>YouTube API v3</h3>
-<ul>
-<li><a href="https://developers.google.com/youtube/v3/">YouTube API v3 Docs</a></li>
-<li><a href="http://code.google.com/apis/console">Obtain API Key</a></li>
-</ul>
+9. Print a bunch of useful information to terminal in the process of steps 7-8
+
+10. Finally add a row to Positives and Negatives gsheet for each of the 10 superstrings
+
+In an ideal world, people wouold use a variation of this script to load and replace keyword strings from many crypto-based subreddits, then push the final superstrings through a (good) word spinner, then post the resulting strings to create FOMO or FUD for a given perp.
