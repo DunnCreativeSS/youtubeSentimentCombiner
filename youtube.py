@@ -5,16 +5,20 @@ import argparse
 from urllib.parse import urlparse, urlencode, parse_qs
 from urllib.request import  urlopen
 import logging
-mykey = "AIzaSyDr6Uf5m9A5BuVYLZ6-DKxkis4rZX528OM"
-logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-    datefmt='%Y-%m-%d:%H:%M:%S',
-    level=logging.DEBUG)
+import praw
+from time import sleep 
+from gensim import models
+from gensim.models import Word2Vec as word2vec
+from cltk.vector.word2vec import get_sims
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+from scipy import spatial
+from gensim.models import Word2Vec
+from sklearn.ensemble import RandomForestClassifier
+from difflib import SequenceMatcher
 
-logger = logging.getLogger(__name__)
-logger.debug("This is a debug log")
-logger.info("This is an info log")
-logger.critical("This is critical")
-logger.error("An error occurred")
+mykey = "AIzaSyCJHFzjEF_2gMG4n2_bSsoELD28VEVgkGA"
+
 import time
 YOUTUBE_COMMENT_URL = 'https://www.googleapis.com/youtube/v3/commentThreads'
 YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search'
@@ -31,6 +35,15 @@ import ssl
 import random
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from difflib import SequenceMatcher
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+r = praw.Reddit(client_id='isH6FnlKKpE4ZA',
+                     client_secret="S8LW-ewauj5wGMMJTpUUoqzLAr8", password='w0rdp4ss',
+                     user_agent='USERAGENT', username='h3xadecimal138')
+
 
 scope = ['https://spreadsheets.google.com/feeds',
          'https://www.googleapis.com/auth/drive']
@@ -41,6 +54,8 @@ gc = gspread.authorize(credentials)
 
 posSheet = gc.open("Reddit Randoms").worksheet('YouTube Positives')
 negSheet = gc.open("Reddit Randoms").worksheet('YouTube Negatives')
+ratio = SequenceMatcher(None, 'this is how we do you know', 'know you how we do this').ratio()
+print(ratio)
 
 
 
@@ -79,7 +94,7 @@ negatives = []
 args = parser.parse_args()
 noMoarLoad = False
 def load_comments(mat):
-    if len(negatives)>60:
+    if len(positives)>110:
         doSheet()
     else:
         for item in mat["items"]:
@@ -95,13 +110,13 @@ def load_comments(mat):
             sentiments = [generatesentiment("split", split) for split in splits]
             for sentiment in sentiments:
                 compound = (sentiment['sentiment']['compound'])
-                if compound > 0.6:
-                    lower = sentiment['split'].lower().replace('bitcoin', '[[our coin]]').replace('btc', '[[our ticker]]')
+                if compound > 0.3:
+                    lower = sentiment['split'].lower()#.replace('bitcoin', '[[our coin]]').replace('btc', '[[our ticker]]')
                     if not lower.startswith('>') and not lower.startswith('**') and not lower.startswith('##')and not lower.startswith('[http'):
                         positives.append(lower)
-                        print(len(positives))
-                if compound < -0.6:
-                    lower = sentiment['split'].lower().replace('bitcoin', '[[our coin]]').replace('btc', '[[our ticker]]')
+                        #print(len(positives))
+                if compound < -0.3:
+                    lower = sentiment['split'].lower()#.replace('bitcoin', '[[our coin]]').replace('btc', '[[our ticker]]')
                     if not lower.startswith('>') and not lower.startswith('**') and not lower.startswith('##')and not lower.startswith('[http'):
                         negatives.append(lower)
                         print(len(negatives))
@@ -130,7 +145,7 @@ def negF(n: int, C: list) -> list:
         return C
 def get_video_comment(url):
 
-    if len(negatives)>60:
+    if len(positives)>110:
         doSheet()
     else:
         parser = argparse.ArgumentParser()
@@ -169,7 +184,7 @@ def get_video_comment(url):
                 }
 
         try:
-
+            
             matches = openURL(YOUTUBE_COMMENT_URL, parms)
             i = 2
             mat = json.loads(matches)
@@ -178,7 +193,7 @@ def get_video_comment(url):
                 load_comments(mat)
             
             while nextPageToken:
-                if len(negatives)>60:
+                if len(positives)>110:
                     doSheet()
                 else:
                     parms.update({'pageToken': nextPageToken})
@@ -197,7 +212,7 @@ def get_video_comment(url):
             print(e)
             print("Cannot Open URL or Fetch comments at a moment")
 def load_search_res(search_response):
-    if len(negatives)>60:
+    if len(positives)>110:
         doSheet()
     else:
         videos, channels, playlists = [], [], []
@@ -219,38 +234,61 @@ def load_search_res(search_response):
     #print("Playlists:\n", "\n".join(playlists), "\n")
 
 doneSheet = False
+
+
+def avg_feature_vector(sentence, model, num_features, index2word_set):
+    words = sentence.split()
+    feature_vec = np.zeros((num_features, ), dtype='float32')
+    n_words = 0
+    for word in words:
+        if word in index2word_set:
+            n_words += 1
+            feature_vec = np.add(feature_vec, model[word])
+    if (n_words > 0):
+        feature_vec = np.divide(feature_vec, n_words)
+    return feature_vec
+
 def doSheet():
     global doneSheet
     if doneSheet is False:
         doneSheet = True;
         print('positive sentences last 100 posts in /r/bitcoin: ' + str(len(positives)))
         print('negative sentences last 100 posts in /r/bitcoin: ' + str(len(negatives)))
-        for n in range(10):
+        for n in range(15):
 
             empty = []
             poses = int(len(positives) / 10)
-            if poses > 6:
-                poses = 6
+            if poses > 3:
+                poses = 3
             posC = posF(poses, empty)
             posPara = ""
             for choice in posC:
                 posPara = posPara + choice + " "
             posArray = []
-            posArray.append(posPara)
-            posSheet.append_row(posArray)
-            
-            neges = int(len(negatives) / 10)
-            if neges > 6:
-                 neges = 6
-            empty = []
-            negC = negF(neges, empty)
+            subreddit = r.subreddit('bitoin')
+            sims = []
+            posParas = []
+            submissions = []
+            for submission in subreddit.hot(limit=1000):
+                submissions.append(submission)
+                text = (vars(submission)['selftext'])
+                ratio = SequenceMatcher(None, text, posPara).ratio()
+                sims.append(ratio)
+                posParas.append(posPara)
+        highest = 0
+        count = 0
+        finalPosPara = ""
+        submmission = praw.models.Submission
+        for sim in sims:
+            count = count + 1
+            if sim > highest:
+                highest = sim
+                submission = submissions[count]
+                finalPosPara = posParas[count]
+        print('highest:' + str(highest))
+        submission.reply(finalPosPara)
+        
 
-            negPara = ""
-            for choice in negC:
-                negPara = negPara + choice + " "
-            negArray = []
-            negArray.append(negPara)
-            negSheet.append_row(negArray)
 def openURL(url, parms):
     f = urlopen(url + '?' + urlencode(parms))
     data = f.read()
@@ -258,8 +296,8 @@ def openURL(url, parms):
     matches = data.decode("utf-8")
     return matches
 try:
-    parms = {'q': 'bitcoin exchange', 'part':'snippet', 'maxResults':"1", 'regionCode': 'US', 'key': mykey}
-    if len(negatives)>60:
+    parms = {'q': 'bitoin', 'part':'snippet', 'maxResults':"1", 'regionCode': 'US', 'key': mykey}
+    if len(positives)>110:
         doSheet()
     else:
         matches = openURL(YOUTUBE_SEARCH_URL, parms)
@@ -271,7 +309,7 @@ try:
         load_search_res(search_response)
 
         while nextPageToken:
-            if len(negatives)>60:
+            if len(positives)>110:
                 doSheet()
             else:    
                 parms.update({'pageToken': nextPageToken})
@@ -289,5 +327,5 @@ except KeyboardInterrupt:
     print("User Aborted the Operation")
 
 except Exception as e:
-    logger.error(e)
-    logger.error("Cannot Open URL or Fetch comments at a moment")
+    print(e)
+    print("Cannot Open URL or Fetch comments at a moment")
