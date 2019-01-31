@@ -17,7 +17,7 @@ from gensim.models import Word2Vec
 from sklearn.ensemble import RandomForestClassifier
 from difflib import SequenceMatcher
 
-mykey = "AIzaSyCJHFzjEF_2gMG4n2_bSsoELD28VEVgkGA"
+mykey = ""
 
 import time
 YOUTUBE_COMMENT_URL = 'https://www.googleapis.com/youtube/v3/commentThreads'
@@ -40,8 +40,8 @@ from difflib import SequenceMatcher
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
-r = praw.Reddit(client_id='isH6FnlKKpE4ZA',
-                     client_secret="S8LW-ewauj5wGMMJTpUUoqzLAr8", password='w0rdp4ss',
+r = praw.Reddit(client_id='',
+                     client_secret="", password='',
                      user_agent='USERAGENT', username='h3xadecimal138')
 
 
